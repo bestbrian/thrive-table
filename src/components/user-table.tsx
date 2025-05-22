@@ -4,8 +4,12 @@ import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
+  getSortedRowModel,
+  SortingState,
   useReactTable,
 } from "@tanstack/react-table";
+import { ArrowUpDown, ArrowDown, ArrowUp } from "lucide-react";
+import { useState } from "react";
 import { User } from "../lib/users";
 
 interface Props {
@@ -14,10 +18,17 @@ interface Props {
 }
 
 export function UserTable({ data, columns }: Props) {
+  const [sorting, setSorting] = useState<SortingState>([]);
+
   const table = useReactTable({
     data,
     columns,
+    state: {
+      sorting,
+    },
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   });
 
   return (
@@ -27,11 +38,26 @@ export function UserTable({ data, columns }: Props) {
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <th key={header.id} className="px-4 py-2 font-semibold">
-                  {flexRender(
-                    header.column.columnDef.header,
-                    header.getContext()
-                  )}
+                <th
+                  key={header.id}
+                  onClick={header.column.getToggleSortingHandler()}
+                  className="px-4 py-2 font-semibold cursor-pointer select-none"
+                >
+                  <div className="flex items-center gap-1">
+                    {flexRender(
+                      header.column.columnDef.header,
+                      header.getContext()
+                    )}
+                    <span className="ml-1">
+                      {header.column.getIsSorted() === "asc" ? (
+                        <ArrowUp size={16} />
+                      ) : header.column.getIsSorted() === "desc" ? (
+                        <ArrowDown size={16} />
+                      ) : (
+                        <ArrowUpDown size={16} className="text-gray-400" />
+                      )}
+                    </span>
+                  </div>
                 </th>
               ))}
             </tr>
