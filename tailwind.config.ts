@@ -7,7 +7,11 @@ const config: Config = {
     "./src/pages/**/*.{ts,tsx,js,jsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        jakarta: ['var(--font-jakarta-sans)', 'sans-serif'],
+      },
+    },
   },
   plugins: [],
 };

@@ -1,79 +1,75 @@
 "use client";
 
-// Add styles for table cells and scrolling behavior
-const tableStyles = `
-  /* Hide scrollbar for Chrome, Safari and Opera */
-  .hide-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  
-  /* Cell container styles */
-  .cell-container {
-    display: flex;
-    align-items: center;
-    position: relative;
-    cursor: text;
-  }
-  
-  /* Make text selection visible even when it extends beyond the cell */
-  .cell-container::selection,
-  .cell-container *::selection {
-    background-color: rgba(59, 130, 246, 0.3);
-  }
-  
-  /* Ensure the cell content takes full width for proper selection */
-  .cell-container > * {
-    min-width: 100%;
-    overflow: visible;
-  }
-`;
-
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  horizontalListSortingStrategy,
-  useSortable,
-  arrayMove,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-
 import {
   ColumnDef,
-  flexRender,
   getCoreRowModel,
   getSortedRowModel,
   SortingState,
   useReactTable,
-  Header,
+  AccessorKeyColumnDef,
 } from "@tanstack/react-table";
 
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { ArrowUpDown, ArrowDown, ArrowUp } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { User } from "../lib/users";
+
+import { 
+  TableHeader, 
+  TableRow, 
+  useColumnSizing,
+  ColumnSizeConfig 
+} from "./table";
 
 interface Props {
   data: User[];
   columns: ColumnDef<User>[];
 }
 
-export function UserTable({ data, columns }: Props) {
+const formatDate = (dateString: string): string => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+};
+
+export function UserTable({ data, columns: initialColumns }: Props) {
+  const columns = useMemo(() => {
+    return initialColumns.map(column => {
+  
+      if ('accessorKey' in column && column.accessorKey === 'registeredDate') {
+        return {
+          ...column,
+          cell: (info: { getValue: () => unknown }) => {
+            const dateValue = info.getValue() as string;
+            return formatDate(dateValue);
+          }
+        };
+      }
+      return column;
+    });
+  }, [initialColumns]);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnOrder, setColumnOrder] = useState(() =>
-    columns.map((col) => col.id ?? col.accessorKey!.toString())
+    columns.map((col) => {
+      if (col.id) return col.id;
+      
+      if ('accessorKey' in col) {
+        const typedCol = col as AccessorKeyColumnDef<User, string>;
+        if (typeof typedCol.accessorKey === 'string') {
+          return typedCol.accessorKey;
+        }
+      }
+      
+      return `col-${Math.random().toString(36).substring(2, 9)}`;
+    })
   );
-
-  // References for virtualization
+  
   const tableContainerRef = useRef<HTMLDivElement>(null);
-  const [tableHeight, setTableHeight] = useState(500); // Default height
+  const [tableHeight, setTableHeight] = useState(500);
+  const [isScrolled, setIsScrolled] = useState(false); 
 
-  // Update table height on mount and resize
   useEffect(() => {
     const updateTableHeight = () => {
       if (tableContainerRef.current) {
@@ -99,101 +95,61 @@ export function UserTable({ data, columns }: Props) {
     getSortedRowModel: getSortedRowModel(),
   });
 
-  // Set up virtualizer
   const { rows } = table.getRowModel();
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => 35, // estimated row height
-    overscan: 10, // number of items to render before/after visible area
+    estimateSize: () => 56,
+    overscan: 10, 
   });
 
-  // Define sensors outside of the render loop to avoid React Hook issues
-  const sensors = useSensors(useSensor(PointerSensor));
-
-  // Calculate relative column widths for better alignment
-  const columnWidths: Record<string, number> = {};
-  
-  // Define relative proportions for different column types
-  const columnProportions: Record<string, number> = {
-    'name': 1.5,
-    'email': 2,
-    'role': 1.2,
-    'status': 1,
-    'default': 1.2
+  const columnSizeConfig: ColumnSizeConfig = {
+    columnProportions: {
+      'sm': 1,     
+      'md': 1.5,     
+      'lg': 3,     
+      'xl': 4,     
+      'default': 2 
+    },
+    columnSizeMap: {
+      'dsr': 'sm',
+      'firstName': 'md',
+      'lastName': 'md',
+      'city': 'md',
+      'fullName': 'md',
+      'registeredDate': 'md',
+      'id': 'md'
+    }
   };
   
-  // Calculate total proportion
-  let totalProportion = 0;
-  table.getAllColumns().forEach(column => {
-    const proportion = columnProportions[column.id] || columnProportions.default;
-    totalProportion += proportion;
-  });
-  
-  // Assign percentage-based widths
-  table.getAllColumns().forEach(column => {
-    const proportion = columnProportions[column.id] || columnProportions.default;
-    const percentWidth = (proportion / totalProportion) * 100;
-    columnWidths[column.id] = percentWidth;
-  });
+  const columnWidths = useColumnSizing(table, columnSizeConfig);
 
   return (
-    <div className="rounded-md border border-gray-200 shadow-sm h-full flex flex-col">
-      {/* Add the style tag to the DOM */}
-      <style dangerouslySetInnerHTML={{ __html: tableStyles }} />
-      {/* Main container */}
+    <div className="rounded-md h-full flex flex-col font-jakarta relative">
+    
       <div className="flex flex-col h-full">
-        {/* Synchronized scrolling container */}
         <div className="w-full flex flex-col">
-          {/* Fixed header */}
-          <div className="overflow-x-auto bg-gray-100 border-b border-gray-300">
-            <div style={{ display: 'flex', width: '100%' }}>
-              {table.getHeaderGroups().map(headerGroup => (
-                <DndContext
-                  key={headerGroup.id}
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={(event) => {
-                    const { active, over } = event;
-                    if (active.id !== over?.id) {
-                      setColumnOrder((prev) => {
-                        const oldIndex = prev.indexOf(active.id as string);
-                        const newIndex = prev.indexOf(over?.id as string);
-                        return arrayMove(prev, oldIndex, newIndex);
-                      });
-                    }
-                  }}
-                >
-                  <SortableContext
-                    items={headerGroup.headers.map((h) => h.column.id)}
-                    strategy={horizontalListSortingStrategy}
-                  >
-                    <div style={{ display: 'flex', width: '100%' }}>
-                      {headerGroup.headers.map(header => (
-                        <SortableHeaderCell 
-                          key={header.id} 
-                          header={header} 
-                          width={columnWidths[header.column.id]}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
-              ))}
-            </div>
-          </div>
+          <TableHeader 
+            headerGroups={table.getHeaderGroups()} 
+            columnWidths={columnWidths} 
+            setColumnOrder={setColumnOrder} 
+          />
 
-          {/* Virtualized rows */}
           <div
             ref={tableContainerRef}
-            className="overflow-auto flex-grow"
+            className="overflow-auto flex-grow relative"
             style={{ height: `${tableHeight}px` }}
             onScroll={(e) => {
-              // Synchronize horizontal scrolling
               const target = e.target as HTMLDivElement;
               const headerContainer = target.previousElementSibling as HTMLDivElement;
               if (headerContainer) {
                 headerContainer.scrollLeft = target.scrollLeft;
+              }
+              
+              if (target.scrollTop > 10 && !isScrolled) {
+                setIsScrolled(true);
+              } else if (target.scrollTop <= 10 && isScrolled) {
+                setIsScrolled(false);
               }
             }}
           >
@@ -207,139 +163,29 @@ export function UserTable({ data, columns }: Props) {
               {rowVirtualizer.getVirtualItems().map(virtualRow => {
                 const row = rows[virtualRow.index];
                 return (
-                  <div
+                  <TableRow
                     key={row.id}
-                    className="absolute hover:bg-gray-50 w-full flex"
-                    style={{
-                      height: `${virtualRow.size}px`,
-                      transform: `translateY(${virtualRow.start}px)`,
-                      borderBottom: '1px solid #e5e7eb',
-                    }}
-                  >
-                    {row.getVisibleCells().map(cell => (
-                      <div
-                        key={cell.id}
-                        className="py-2 px-4 whitespace-nowrap hide-scrollbar cell-container"
-                        style={{ 
-                          width: `${columnWidths[cell.column.id]}%`,
-                          overflow: 'hidden',  /* Default to hidden */
-                          msOverflowStyle: 'none', /* Hide scrollbar in IE and Edge */
-                          scrollbarWidth: 'none', /* Hide scrollbar in Firefox */
-                          WebkitOverflowScrolling: 'touch' /* Smooth scrolling on iOS */
-                        }}
-                        onMouseEnter={(e) => {
-                          // Show scrollbar on hover
-                          e.currentTarget.style.overflowX = 'auto';
-                        }}
-                        onMouseLeave={(e) => {
-                          // Hide scrollbar when not hovering and remove selecting state
-                          e.currentTarget.style.overflowX = 'hidden';
-                          e.currentTarget.removeAttribute('data-selecting');
-                        }}
-                        onMouseDown={(e) => {
-                          // Set a data attribute to track that mouse is down in this cell
-                          e.currentTarget.setAttribute('data-selecting', 'true');
-                        }}
-                        onMouseUp={(e) => {
-                          // Remove the data attribute when mouse is released
-                          e.currentTarget.removeAttribute('data-selecting');
-                        }}
-                        onMouseMove={(e) => {
-                          // Get cell element
-                          const cell = e.currentTarget;
-                          
-                          // Only scroll if we're actively selecting (mouse button is down)
-                          if (cell.getAttribute('data-selecting') !== 'true') {
-                            return;
-                          }
-                          
-                          // Get mouse position relative to cell
-                          const mouseX = e.clientX - cell.getBoundingClientRect().left;
-                          // Get cell width
-                          const cellWidth = cell.offsetWidth;
-                          // Calculate scroll position based on mouse position
-                          if (mouseX > cellWidth * 0.7 && cell.scrollWidth > cell.offsetWidth) {
-                            // If mouse is in the right 30% of visible area and content is scrollable
-                            // Scroll right gradually
-                            cell.scrollLeft += 5;
-                          } else if (mouseX < cellWidth * 0.3 && cell.scrollLeft > 0) {
-                            // If mouse is in the left 30% of visible area and scrolled
-                            // Scroll left gradually
-                            cell.scrollLeft -= 5;
-                          }
-                        }}
-                        onFocus={(e) => {
-                          // Show scrollbar on focus (for keyboard navigation)
-                          e.currentTarget.style.overflowX = 'auto';
-                        }}
-                        onBlur={(e) => {
-                          // Hide scrollbar when not focused
-                          e.currentTarget.style.overflowX = 'hidden';
-                        }}
-                      >
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </div>
-                    ))}
-                  </div>
+                    row={row}
+                    columnWidths={columnWidths}
+                    virtualRowSize={virtualRow.size}
+                    virtualRowStart={virtualRow.start}
+                  />
                 );
               })}
             </div>
+          
+            <div className="py-6 text-center text-gray-500 font-medium font-jakarta">
+              All done!
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-interface SortableHeaderCellProps {
-  header: Header<User, unknown>;
-  width: number;
-}
-
-function SortableHeaderCell({ header, width }: SortableHeaderCellProps) {
-  const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({
-      id: header.column.id,
-    });
-
-  const sortableStyles = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    width: `${width}%`,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={sortableStyles}
-      className="px-4 py-2 font-semibold select-none bg-gray-100 border-r border-gray-200 flex items-center"
-    >
-      <div className="flex items-center gap-1 flex-grow">
-        {/* Sorting area (clickable) */}
-        <div
-          onClick={header.column.getToggleSortingHandler()}
-          className="flex items-center gap-1 cursor-pointer"
-        >
-          {flexRender(header.column.columnDef.header, header.getContext())}
-          <span className="ml-1">
-            {header.column.getIsSorted() === "asc" ? (
-              <ArrowUp size={14} />
-            ) : header.column.getIsSorted() === "desc" ? (
-              <ArrowDown size={14} />
-            ) : (
-              <ArrowUpDown size={14} className="text-gray-400" />
-            )}
-          </span>
-        </div>
-
-        {/* Drag handle (separate from click) */}
-        <div
-          {...attributes}
-          {...listeners}
-          className="cursor-grab pl-2 text-gray-400 ml-auto"
-          title="Drag to reorder"
-        >
-          ::
+          
+          <div 
+            className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none transition-opacity duration-300 z-10"
+            style={{ 
+              background: 'linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.8) 50%, rgba(255,255,255,1) 100%)',
+              opacity: isScrolled ? 0 : 1
+            }}
+          />
         </div>
       </div>
     </div>

@@ -1,6 +1,37 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+.cell-container {
+  display: flex;
+  align-items: center;
+  position: relative;
+  cursor: text;
+}
+
+.cell-container::selection,
+.cell-container *::selection {
+  background-color: var(--table-selection-color);
+}
+
+.cell-container > * {
+  min-width: 100%;
+  overflow: visible;
+}
+
+.header-cell {
+  position: relative;
+  overflow: visible;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;  
+  scrollbar-width: none;  
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; 
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -47,6 +78,9 @@
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
+  
+  /* Custom table styles */
+  --table-selection-color: rgba(59, 130, 246, 0.3);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
