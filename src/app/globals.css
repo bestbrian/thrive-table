@@ -119,4 +119,8 @@
   body {
     @apply bg-background text-foreground;
   }
+  .resizing {
+    cursor: col-resize;
+    user-select: none;
+  }
 }
