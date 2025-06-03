@@ -1,4 +1,3 @@
-export * from './SortableHeaderCell';
-export * from './TableHeader';
-export * from './TableRow';
-export * from './useColumnSizing';
+export * from './sortable-header-cell';
+export * from './table-header';
+export * from './table-row';

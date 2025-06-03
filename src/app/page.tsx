@@ -1,6 +1,7 @@
-import { UserTable } from "../components/user-table";
 import { ColumnDef } from "@tanstack/react-table";
-import { generateFakeUsers, User } from "../lib/users";
+import { generateFakeUsers } from "../lib/users";
+import { User } from "../types/user";
+import { ClientTableWrapper } from "../components/client-table-wrapper";
 
 const data = generateFakeUsers();
 
@@ -19,7 +20,7 @@ export default function Home() {
   return (
     <main className="p-6 space-y-4">
       <h1 className="text-3xl font-bold">Thrive Table</h1>
-      <UserTable data={data} columns={columns} />
+      <ClientTableWrapper data={data} columns={columns} />
     </main>
   );
 }

@@ -11,6 +11,12 @@ const config: Config = {
       fontFamily: {
         jakarta: ['var(--font-jakarta-sans)', 'sans-serif'],
       },
+      colors: {
+        thrive: {
+          purple: '#674263',
+          pink: '#f7cee3',
+        },
+      },
     },
   },
   plugins: [],

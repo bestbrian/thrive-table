@@ -1,43 +1,31 @@
 "use client";
 
 import {
-  ColumnDef,
   getCoreRowModel,
   getSortedRowModel,
-  SortingState,
   useReactTable,
-  AccessorKeyColumnDef,
 } from "@tanstack/react-table";
 
-import { useVirtualizer } from '@tanstack/react-virtual';
-import { useState, useRef, useEffect, useMemo } from "react";
-import { User } from "../lib/users";
+import { useMemo } from "react";
+import { User } from "../types/user";
+import { TableProps } from "../types/table";
+
+import { useTableSorting } from "../hooks/use-table-sorting";
+import { useColumnReordering } from "../hooks/use-column-reordering";
+import { useTableVirtualization } from "../hooks/use-table-virtualization";
+import { useColumnSizing } from "../hooks/use-column-sizing";
+
+import { formatDate } from "../utils/date";
+import { TABLE } from "../utils/constants";
 
 import { 
   TableHeader, 
-  TableRow, 
-  useColumnSizing,
-  ColumnSizeConfig 
+  TableRow 
 } from "./table";
 
-interface Props {
-  data: User[];
-  columns: ColumnDef<User>[];
-}
-
-const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  });
-};
-
-export function UserTable({ data, columns: initialColumns }: Props) {
+export function UserTable({ data, columns: initialColumns }: TableProps<User>) {
   const columns = useMemo(() => {
     return initialColumns.map(column => {
-  
       if ('accessorKey' in column && column.accessorKey === 'registeredDate') {
         return {
           ...column,
@@ -50,37 +38,19 @@ export function UserTable({ data, columns: initialColumns }: Props) {
       return column;
     });
   }, [initialColumns]);
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnOrder, setColumnOrder] = useState(() =>
-    columns.map((col) => {
-      if (col.id) return col.id;
-      
-      if ('accessorKey' in col) {
-        const typedCol = col as AccessorKeyColumnDef<User, string>;
-        if (typeof typedCol.accessorKey === 'string') {
-          return typedCol.accessorKey;
-        }
-      }
-      
-      return `col-${Math.random().toString(36).substring(2, 9)}`;
-    })
-  );
   
-  const tableContainerRef = useRef<HTMLDivElement>(null);
-  const [tableHeight, setTableHeight] = useState(500);
-  const [isScrolled, setIsScrolled] = useState(false); 
-
-  useEffect(() => {
-    const updateTableHeight = () => {
-      if (tableContainerRef.current) {
-        setTableHeight(tableContainerRef.current.offsetHeight || 500);
-      }
-    };
-
-    updateTableHeight();
-    window.addEventListener('resize', updateTableHeight);
-    return () => window.removeEventListener('resize', updateTableHeight);
-  }, []);
+  const { sorting, setSorting } = useTableSorting();
+  const { columnOrder, setColumnOrder } = useColumnReordering<User>(columns);
+  const { 
+    tableContainerRef, 
+    tableHeight, 
+    rowVirtualizer, 
+    isScrolled, 
+    handleScroll 
+  } = useTableVirtualization<User>(data, {
+    rowHeight: TABLE.ROW_HEIGHT,
+    overscan: TABLE.OVERSCAN
+  });
 
   const table = useReactTable({
     data,
@@ -96,37 +66,16 @@ export function UserTable({ data, columns: initialColumns }: Props) {
   });
 
   const { rows } = table.getRowModel();
-  const rowVirtualizer = useVirtualizer({
-    count: rows.length,
-    getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => 56,
-    overscan: 10, 
-  });
-
-  const columnSizeConfig: ColumnSizeConfig = {
-    columnProportions: {
-      'sm': 1,     
-      'md': 1.5,     
-      'lg': 3,     
-      'xl': 4,     
-      'default': 2 
-    },
-    columnSizeMap: {
-      'dsr': 'sm',
-      'firstName': 'md',
-      'lastName': 'md',
-      'city': 'md',
-      'fullName': 'md',
-      'registeredDate': 'md',
-      'id': 'md'
-    }
+  
+  const columnSizeConfig = {
+    columnProportions: TABLE.COLUMN_SIZES,
+    columnSizeMap: TABLE.COLUMN_SIZE_MAP
   };
   
   const columnWidths = useColumnSizing(table, columnSizeConfig);
 
   return (
     <div className="rounded-md h-full flex flex-col font-jakarta relative">
-    
       <div className="flex flex-col h-full">
         <div className="w-full flex flex-col">
           <TableHeader 
@@ -139,19 +88,7 @@ export function UserTable({ data, columns: initialColumns }: Props) {
             ref={tableContainerRef}
             className="overflow-auto flex-grow relative"
             style={{ height: `${tableHeight}px` }}
-            onScroll={(e) => {
-              const target = e.target as HTMLDivElement;
-              const headerContainer = target.previousElementSibling as HTMLDivElement;
-              if (headerContainer) {
-                headerContainer.scrollLeft = target.scrollLeft;
-              }
-              
-              if (target.scrollTop > 10 && !isScrolled) {
-                setIsScrolled(true);
-              } else if (target.scrollTop <= 10 && isScrolled) {
-                setIsScrolled(false);
-              }
-            }}
+            onScroll={handleScroll}
           >
             <div 
               style={{ 

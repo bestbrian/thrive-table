@@ -11,8 +11,8 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { HeaderGroup } from "@tanstack/react-table";
-import { User } from "../../lib/users";
-import { SortableHeaderCell } from "./SortableHeaderCell";
+import { User } from "../../types/user";
+import { SortableHeaderCell } from "./sortable-header-cell";
 
 interface TableHeaderProps {
   headerGroups: HeaderGroup<User>[];

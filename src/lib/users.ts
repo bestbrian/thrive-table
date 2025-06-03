@@ -1,15 +1,5 @@
 import { faker } from "@faker-js/faker";
-
-export type User = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  city: string;
-  registeredDate: string;
-  fullName: string;
-  dsr: number;
-};
+import { User } from "../types/user";
 
 export const generateFakeUsers = (count: number = 500): User[] => {
   return Array.from({ length: count }).map(() => {

@@ -1,5 +1,5 @@
 import { Row, flexRender } from "@tanstack/react-table";
-import { User } from "../../lib/users";
+import { User } from "../../types/user";
 
 interface TableRowProps {
   row: Row<User>;

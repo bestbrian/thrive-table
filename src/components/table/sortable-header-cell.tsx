@@ -2,7 +2,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Header, flexRender } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
-import { User } from "../../lib/users";
+import { User } from "../../types/user";
 
 interface SortableHeaderCellProps {
   header: Header<User, unknown>;
